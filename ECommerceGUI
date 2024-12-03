@@ -1,0 +1,217 @@
+import javax.swing.*;
+import java.awt.*;
+import java.util.*;
+import java.util.List;
+import java.util.stream.Collectors;
+
+public class ECommerceGUI {
+    private JFrame frame;
+    private JPanel dynamicPanel;
+    private List<CartItem> shoppingCart = new ArrayList<>();
+    private List<Product> productList = new ArrayList<>();
+    private double totalPrice = 0.0;
+    private JLabel totalPriceLabel;
+
+    public ECommerceGUI() {
+        frame = new JFrame("E-Commerce Platform");
+        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        frame.setSize(800, 600);
+
+        // Initialize products
+        initializeProducts();
+
+        // Layout
+        JPanel mainPanel = new JPanel(new BorderLayout());
+        dynamicPanel = new JPanel();
+        totalPriceLabel = new JLabel("Total: $0.00");
+
+        // Menu
+        JPanel menuPanel = new JPanel(new FlowLayout());
+        JButton productsButton = new JButton("Products");
+        JButton cartButton = new JButton("Go to Shopping Cart");
+        JButton searchButton = new JButton("Search Products");
+
+        productsButton.addActionListener(e -> displayProductCategories());
+        cartButton.addActionListener(e -> displayShoppingCart());
+        searchButton.addActionListener(e -> searchProducts());
+
+        menuPanel.add(productsButton);
+        menuPanel.add(cartButton);
+        menuPanel.add(searchButton);
+        menuPanel.add(totalPriceLabel);
+
+        mainPanel.add(menuPanel, BorderLayout.NORTH);
+        mainPanel.add(dynamicPanel, BorderLayout.CENTER);
+
+        frame.add(mainPanel);
+        frame.setVisible(true);
+    }
+
+    private void initializeProducts() {
+        // Add products to the list
+        productList.add(new Product("Laptop", 1200.0, "Electronics"));
+        productList.add(new Product("Apple", 2.50, "Produce"));
+        productList.add(new Product("Banana", 3.00, "Produce"));
+        productList.add(new Product("Carrots", 2.00, "Produce"));
+        productList.add(new Product("Spinach", 3.00, "Produce"));
+        productList.add(new Product("Casual Shoes", 65.99, "Clothing"));
+        productList.add(new Product("Slippers", 15.00, "Clothing"));
+        productList.add(new Product("Boots", 99.99, "Clothing"));
+        productList.add(new Product("Running Shoes", 79.99, "Clothing"));
+        productList.add(new Product("Jeans", 70.00, "Clothing"));
+        productList.add(new Product("Joggers", 45.00, "Clothing"));
+        productList.add(new Product("Sweatpants", 29.99, "Clothing"));
+        productList.add(new Product("Shorts", 17.99, "Clothing"));
+    }
+
+    private void displayProductCategories() {
+        dynamicPanel.removeAll();
+        dynamicPanel.setLayout(new GridLayout(0, 1));
+
+        // Product categories
+        Set<String> categories = productList.stream()
+                .map(Product::getCategory)
+                .collect(Collectors.toSet());
+
+        categories.forEach(category -> {
+            JButton categoryButton = new JButton(category);
+            categoryButton.addActionListener(e -> displayProductsByCategory(category));
+            dynamicPanel.add(categoryButton);
+        });
+
+        dynamicPanel.revalidate();
+        dynamicPanel.repaint();
+    }
+
+    private void displayProductsByCategory(String category) {
+        dynamicPanel.removeAll();
+        dynamicPanel.setLayout(new GridLayout(0, 1));
+
+        productList.stream()
+                .filter(product -> product.getCategory().equals(category))
+                .sorted(Comparator.comparing(Product::getName))
+                .forEach(product -> {
+                    JButton productButton = new JButton(product.getName() + " - $" + product.getPrice());
+                    productButton.addActionListener(e -> addToCart(product.getName(), product.getPrice()));
+                    dynamicPanel.add(productButton);
+                });
+
+        JButton backButton = new JButton("Back to Categories");
+        backButton.addActionListener(e -> displayProductCategories());
+        dynamicPanel.add(backButton);
+
+        dynamicPanel.revalidate();
+        dynamicPanel.repaint();
+    }
+
+    private void searchProducts() {
+        String searchQuery = JOptionPane.showInputDialog(frame, "Enter product name:");
+        if (searchQuery != null && !searchQuery.trim().isEmpty()) {
+            List<Product> searchResults = productList.stream()
+                    .filter(product -> product.getName().toLowerCase().contains(searchQuery.toLowerCase()))
+                    .collect(Collectors.toList());
+
+            dynamicPanel.removeAll();
+            dynamicPanel.setLayout(new GridLayout(0, 1));
+
+            if (searchResults.isEmpty()) {
+                dynamicPanel.add(new JLabel("No products found matching: " + searchQuery));
+            } else {
+                searchResults.forEach(product -> {
+                    JButton button = new JButton(product.getName() + " - $" + product.getPrice());
+                    button.addActionListener(e -> addToCart(product.getName(), product.getPrice()));
+                    dynamicPanel.add(button);
+                });
+            }
+
+            dynamicPanel.revalidate();
+            dynamicPanel.repaint();
+        }
+    }
+
+    private void displayShoppingCart() {
+        dynamicPanel.removeAll();
+        dynamicPanel.setLayout(new BorderLayout());
+
+        JPanel cartPanel = new JPanel();
+        cartPanel.setLayout(new BoxLayout(cartPanel, BoxLayout.Y_AXIS));
+
+        if (shoppingCart.isEmpty()) {
+            cartPanel.add(new JLabel("Your shopping cart is empty."));
+        } else {
+            shoppingCart.stream()
+                    .sorted(Comparator.comparing(CartItem::getName))
+                    .forEach(item -> {
+                        JLabel itemLabel = new JLabel(item.getQuantity() + "x " + item.getName() + " - $" +
+                                String.format("%.2f", item.getQuantity() * item.getPrice()));
+                        JButton removeButton = new JButton("Remove One");
+                        removeButton.addActionListener(e -> {
+                            removeFromCart(item.getName());
+                            displayShoppingCart();
+                        });
+                        JPanel row = new JPanel(new FlowLayout());
+                        row.add(itemLabel);
+                        row.add(removeButton);
+                        cartPanel.add(row);
+                    });
+
+            JLabel taxLabel = new JLabel("Tax (10%): $" + String.format("%.2f", totalPrice * 0.1));
+            JLabel shippingLabel = new JLabel("Shipping Fee: $" + String.format("%.2f", calculateShipping()));
+            JLabel finalTotalLabel = new JLabel("Final Total: $" + String.format("%.2f", calculateFinalTotal()));
+
+            cartPanel.add(taxLabel);
+            cartPanel.add(shippingLabel);
+            cartPanel.add(finalTotalLabel);
+        }
+
+        dynamicPanel.add(cartPanel, BorderLayout.CENTER);
+        dynamicPanel.revalidate();
+        dynamicPanel.repaint();
+    }
+
+    private double calculateShipping() {
+        return totalPrice > 50 ? 5.00 : 10.00;
+    }
+
+    private double calculateFinalTotal() {
+        return totalPrice + (totalPrice * 0.1) + calculateShipping();
+    }
+
+    private void addToCart(String name, double price) {
+        Optional<CartItem> existingItem = shoppingCart.stream()
+                .filter(item -> item.getName().equalsIgnoreCase(name))
+                .findFirst();
+
+        if (existingItem.isPresent()) {
+            CartItem item = existingItem.get();
+            item.incrementQuantity();
+        } else {
+            shoppingCart.add(new CartItem(name, price));
+        }
+
+        totalPrice += price;
+        updateTotalPriceLabel();
+    }
+
+    private void removeFromCart(String name) {
+        Optional<CartItem> existingItem = shoppingCart.stream()
+                .filter(item -> item.getName().equalsIgnoreCase(name))
+                .findFirst();
+
+        if (existingItem.isPresent()) {
+            CartItem item = existingItem.get();
+            totalPrice -= item.getPrice();
+            if (item.getQuantity() > 1) {
+                item.decrementQuantity();
+            } else {
+                shoppingCart.remove(item);
+            }
+        }
+
+        updateTotalPriceLabel();
+    }
+
+    private void updateTotalPriceLabel() {
+        totalPriceLabel.setText("Total: $" + String.format("%.2f", totalPrice));
+    }
+}
